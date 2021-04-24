@@ -227,6 +227,36 @@ func TestStringSchema_Alphanum(t *testing.T) {
 	}
 }
 
+func TestStringSchema_Email(t *testing.T) {
+	schema := String().Email()
+	ctx := NewContext("user@gmail.co")
+	schema.Validate(ctx)
+	if ctx.Err != nil {
+		t.Error("test email failed")
+	}
+
+	ctx = NewContext("abcd@gmail")
+	schema.Validate(ctx)
+	if ctx.Err == nil {
+		t.Error("test email failed")
+	}
+}
+
+func TestStringSchema_CreditCard(t *testing.T) {
+	schema := String().CreditCard()
+	ctx := NewContext("5339098709870987")
+	schema.Validate(ctx)
+	if ctx.Err != nil {
+		t.Error("test phone failed")
+	}
+
+	ctx = NewContext("79037850836757")
+	schema.Validate(ctx)
+	if ctx.Err == nil {
+		t.Error("test phone failed")
+	}
+}
+
 func TestStringSchema_Token(t *testing.T) {
 	schema := String().Token()
 	ctx := NewContext("xsoi2n1ks_")
