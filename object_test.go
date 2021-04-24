@@ -126,6 +126,12 @@ func TestObjectSchema_Without(t *testing.T) {
 
 	ctx = NewContext(map[string]interface{}{"hi": "11", "othor": "111"})
 	schema.Validate(ctx)
+	if ctx.Err == nil {
+		t.Error("invalid value test failed")
+	}
+
+	ctx = NewContext(map[string]interface{}{"hello": "11", "othor": "111"})
+	schema.Validate(ctx)
 	if ctx.Err != nil {
 		t.Error("invalid value test failed")
 	}
