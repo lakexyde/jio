@@ -83,6 +83,24 @@ func TestObjectSchema_Optional(t *testing.T) {
 	}
 }
 
+func TestObjectSchema_StripUnknown(t *testing.T) {
+	schema := Object().Keys(K{
+		"hi":   String(),
+		"name": String(),
+	}).StripUnknown()
+
+	ctx := NewContext(map[string]interface{}{
+		"hi":    "hello",
+		"name":  "Olalekan",
+		"email": "user@email.com",
+	})
+	schema.Validate(ctx)
+	if ctx.Err != nil {
+		t.Error("should no error")
+	}
+
+}
+
 func TestObjectSchema_Default(t *testing.T) {
 	defaultValue := map[string]interface{}{"1": "2"}
 	schema := Object().Default(defaultValue)

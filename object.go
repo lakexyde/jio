@@ -25,6 +25,15 @@ func (k K) sort() []objectItem {
 	return objects
 }
 
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
 // Object Generates a schema object that matches object data type
 func Object() *ObjectSchema {
 	return &ObjectSchema{
@@ -76,6 +85,30 @@ func (o *ObjectSchema) Optional() *ObjectSchema {
 	return o.PrependTransform(func(ctx *Context) {
 		if ctx.Value == nil {
 			ctx.Skip()
+		}
+	})
+}
+
+// StripUnknown removes unknown fields
+func (o *ObjectSchema) StripUnknown() *ObjectSchema {
+	return o.Transform(func(ctx *Context) {
+		ctxValue, ok := ctx.Value.(map[string]interface{})
+		if !ok {
+			ctx.Abort(fmt.Errorf("field `%s` value %v is not object", ctx.FieldPath(), ctx.Value))
+			return
+		}
+		fields := make([]string, len(ctx.fields))
+		ctxVal := make(map[string]interface{}, len(ctx.fields))
+		copy(fields, ctx.fields)
+
+		defer func() {
+			ctx.Value = ctxVal
+		}()
+
+		for key, val := range ctxValue {
+			if contains(fields, key) {
+				ctxVal[key] = val
+			}
 		}
 	})
 }
