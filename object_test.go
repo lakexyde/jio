@@ -84,10 +84,10 @@ func TestObjectSchema_Optional(t *testing.T) {
 }
 
 func TestObjectSchema_StripUnknown(t *testing.T) {
-	schema := Object().Keys(K{
+	schema := Object().StripUnknown().Keys(K{
 		"hi":   String(),
 		"name": String(),
-	}).StripUnknown()
+	})
 
 	ctx := NewContext(map[string]interface{}{
 		"hi":    "hello",
@@ -95,6 +95,7 @@ func TestObjectSchema_StripUnknown(t *testing.T) {
 		"email": "user@email.com",
 	})
 	schema.Validate(ctx)
+	t.Error(ctx.fields)
 	if ctx.Err != nil {
 		t.Error("should no error")
 	}

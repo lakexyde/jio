@@ -94,22 +94,24 @@ func (o *ObjectSchema) StripUnknown() *ObjectSchema {
 	return o.Transform(func(ctx *Context) {
 		ctxValue, ok := ctx.Value.(map[string]interface{})
 		if !ok {
-			ctx.Abort(fmt.Errorf("field `%s` value %v is not object", ctx.FieldPath(), ctx.Value))
+			if ctx.FieldPath() == "" {
+				ctx.Abort(fmt.Errorf("input body is not an object"))
+			} else {
+				ctx.Abort(fmt.Errorf("`%s` is not an object", ctx.FieldPath()))
+			}
 			return
 		}
 		fields := make([]string, len(ctx.fields))
-		ctxVal := make(map[string]interface{}, len(ctx.fields))
+		ctxVal := map[string]interface{}{}
 		copy(fields, ctx.fields)
-
-		defer func() {
-			ctx.Value = ctxVal
-		}()
 
 		for key, val := range ctxValue {
 			if contains(fields, key) {
 				ctxVal[key] = val
 			}
 		}
+
+		ctx.Value = ctxVal
 	})
 }
 
@@ -205,12 +207,14 @@ func (o *ObjectSchema) Validate(ctx *Context) {
 	if o.required == nil {
 		o.Optional()
 	}
+
 	for _, rule := range o.rules {
 		rule(ctx)
 		if ctx.skip {
 			return
 		}
 	}
+
 	if ctx.Err == nil {
 		if _, ok := (ctx.Value).(map[string]interface{}); !ok {
 			ctx.Abort(fmt.Errorf("field `%s` value %v is not object", ctx.FieldPath(), ctx.Value))
