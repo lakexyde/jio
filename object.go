@@ -34,6 +34,13 @@ func contains(s []string, e string) bool {
 	return false
 }
 
+func appendIfNotExist(s []string, e string) []string {
+	if !contains(s, e) {
+		return append(s, e)
+	}
+	return s
+}
+
 // Object Generates a schema object that matches object data type
 func Object() *ObjectSchema {
 	return &ObjectSchema{
@@ -94,24 +101,23 @@ func (o *ObjectSchema) StripUnknown() *ObjectSchema {
 	return o.Transform(func(ctx *Context) {
 		ctxValue, ok := ctx.Value.(map[string]interface{})
 		if !ok {
-			if ctx.FieldPath() == "" {
-				ctx.Abort(fmt.Errorf("input body is not an object"))
-			} else {
-				ctx.Abort(fmt.Errorf("`%s` is not an object", ctx.FieldPath()))
-			}
+			ctx.Abort(fmt.Errorf("field `%s` value %v is not object", ctx.FieldPath(), ctx.Value))
 			return
 		}
+
 		fields := make([]string, len(ctx.fields))
-		ctxVal := map[string]interface{}{}
+		ctxVal := make(map[string]interface{}, len(ctx.fields))
 		copy(fields, ctx.fields)
+
+		defer func() {
+			ctx.Value = ctxVal
+		}()
 
 		for key, val := range ctxValue {
 			if contains(fields, key) {
 				ctxVal[key] = val
 			}
 		}
-
-		ctx.Value = ctxVal
 	})
 }
 
@@ -178,25 +184,29 @@ func (o *ObjectSchema) Keys(children K) *ObjectSchema {
 			ctx.Abort(fmt.Errorf("field `%s` value %v is not object", ctx.FieldPath(), ctx.Value))
 			return
 		}
-		fields := make([]string, len(ctx.fields))
+		fields := make([]string, len(children))
 		copy(fields, ctx.fields)
+
+		// new value
+		newValue := map[string]interface{}{}
 
 		defer func() {
 			ctx.fields = fields
-			ctx.Value = ctxValue
+			ctx.Value = newValue
 		}()
 
 		for _, obj := range children.sort() {
 			value, _ := ctxValue[obj.key]
 			ctx.skip = false
-			ctx.fields = append(fields, obj.key)
+			fields = appendIfNotExist(fields, obj.key)
 			ctx.Value = value
 			obj.schema.Validate(ctx)
 			if ctx.Err != nil {
 				return
 			}
 			if !ctx.skip {
-				ctxValue[obj.key] = ctx.Value
+				fields = appendIfNotExist(fields, obj.key)
+				newValue[obj.key] = ctx.Value
 			}
 		}
 	})
@@ -207,14 +217,12 @@ func (o *ObjectSchema) Validate(ctx *Context) {
 	if o.required == nil {
 		o.Optional()
 	}
-
 	for _, rule := range o.rules {
 		rule(ctx)
 		if ctx.skip {
 			return
 		}
 	}
-
 	if ctx.Err == nil {
 		if _, ok := (ctx.Value).(map[string]interface{}); !ok {
 			ctx.Abort(fmt.Errorf("field `%s` value %v is not object", ctx.FieldPath(), ctx.Value))
